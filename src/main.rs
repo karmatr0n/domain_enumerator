@@ -1,5 +1,6 @@
 use chrono::Local;
 use futures::future::join_all;
+use regex::Regex;
 use rsdns::clients::{tokio::Client, ClientConfig};
 use rsdns::{constants::Class, records::data::Aaaa, records::data::A};
 use serde::{Deserialize, Serialize};
@@ -32,10 +33,22 @@ impl DomainGenerator {
     fn words_to_domains<R: BufRead>(&self, reader: R) -> io::Result<Vec<String>> {
         let mut domains = Vec::new();
         for line in reader.lines() {
-            let domain = format!("{}.{}", line?, self.top_level);
-            domains.push(domain);
+            let name = line?;
+            if name.is_empty() {
+                continue;
+            }
+            let domain = format!("{}.{}", name, self.top_level);
+            if self.valid_domain(&domain) {
+                domains.push(domain);
+            }
         }
         Ok(domains)
+    }
+
+    fn valid_domain(&self, domain: &String) -> bool {
+        let regex_pattern = r"^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$";
+        let regex = Regex::new(regex_pattern).unwrap();
+        regex.is_match(domain)
     }
 }
 

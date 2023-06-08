@@ -13,3 +13,4 @@ tokio = { version = "1", features = ["full"] }
 chrono = "0.4.26"
 random-string = "0.1.2"
 clap = { version = "4.3.2", features = ["derive"] }
+regex = "1.4.2"
