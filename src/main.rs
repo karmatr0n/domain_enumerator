@@ -1,17 +1,14 @@
 use chrono::Local;
-use futures::executor::block_on;
 use futures::future::join_all;
-use futures::Future;
+use rsdns::clients::{tokio::Client, ClientConfig};
+use rsdns::{constants::Class, records::data::Aaaa, records::data::A};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::{self, BufRead};
+use std::net::SocketAddr;
 use std::path::Path;
-use std::pin::Pin;
-use trust_dns_resolver::config::ResolverConfig;
-use trust_dns_resolver::config::ResolverOpts;
-use trust_dns_resolver::Resolver;
 
 struct DomainGenerator {
     path: String,
@@ -57,11 +54,11 @@ impl Domain {
     }
 }
 
-struct DomainList {
+struct DomainNames {
     domains: Vec<Domain>,
 }
 
-impl DomainList {
+impl DomainNames {
     fn new() -> Self {
         Self {
             domains: Vec::<Domain>::new(),
@@ -80,7 +77,7 @@ impl DomainList {
 struct AsyncDomainResolver {
     domains: Vec<String>,
     max_async_lookups: u32,
-    resolved_domains: DomainList,
+    resolved_domains: DomainNames,
 }
 
 impl AsyncDomainResolver {
@@ -88,16 +85,16 @@ impl AsyncDomainResolver {
         Self {
             domains: domains,
             max_async_lookups: 20,
-            resolved_domains: DomainList::new(),
+            resolved_domains: DomainNames::new(),
         }
     }
 
     fn resolve_domains(&mut self) {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         for domains in self.domains.chunks(self.max_async_lookups as usize) {
             let now = Local::now();
             println!("--- Verifying {} domains at {:?} ---", domains.len(), now);
-
-            let verified_domains = block_on(self.async_resolve_domains(domains));
+            let verified_domains = rt.block_on(self.async_resolve_domains(domains));
             for domain in verified_domains {
                 println!("domain: {}, resolved:{}", domain.name, domain.resolved);
                 self.resolved_domains.add(domain);
@@ -125,34 +122,40 @@ impl AsyncDomainResolver {
     }
 
     async fn async_resolve_domains(&self, domains: &[String]) -> Vec<Domain> {
-        let mut futures: Vec<Pin<Box<dyn Future<Output = Domain> + Send>>> = Vec::new();
+        let mut futures = Vec::new();
         for domain in domains {
-            let f = Box::pin(self.resolve_domain(domain.to_string()));
+            let f = self.resolve_domain(domain.to_string());
             futures.push(f);
         }
         let results = join_all(futures).await;
         results
     }
 
-    async fn resolve_domain(&self, domain: String) -> Domain {
-        let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default()).unwrap();
-        let response = resolver.lookup_ip(format!("{}.", domain).as_str());
-        let resolved = match response {
-            Ok(_) => true,
-            Err(_) => false,
-        };
-        Domain::new(domain, resolved)
+    async fn resolve_domain(&self, qname: String) -> Domain {
+        let ip_addr_and_port = "8.8.8.8:53";
+        let nameserver: SocketAddr = ip_addr_and_port
+            .parse()
+            .expect("Unable to parse socket address");
+
+        let config = ClientConfig::with_nameserver(nameserver);
+        let mut client = Client::new(config)
+            .await
+            .expect("Unable to create DNS client");
+
+        let rrset = client.query_rrset::<A>(qname.as_str(), Class::In).await;
+        let rrset_ipv6 = client.query_rrset::<Aaaa>(qname.as_str(), Class::In).await;
+        Domain::new(qname, rrset.is_ok() || rrset_ipv6.is_ok())
     }
 }
 
 use clap::Parser;
-// domain_resolver -w <wordlist> <top_level_domain>
+// domain_resolver -n <names_list> <top_level_domain>
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Path for the wordlist to use
+    /// Path for the file with the names to use
     #[arg(short, long)]
-    wordlist_path: String,
+    names_path: String,
 
     /// Top level domain, example: com
     #[arg(short, long, default_value = "com")]
@@ -162,7 +165,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let generator = DomainGenerator::new(args.wordlist_path, args.top_level);
+    let generator = DomainGenerator::new(args.names_path, args.top_level);
 
     match generator.generate_domains() {
         Ok(domains) => {
