@@ -1,6 +1,5 @@
 # domain_enumerator
-Asynchronous domain name enumerator tool looks for available domains using a name list and the top level domain of your choice to resolve domains via brute
-forcing.
+Asynchronous domain name enumerator tool looks for available domains using a name list and the top level domain of your choice to resolve domains or subdomains via brute forcing.
 
 ## How to build this
 ```
