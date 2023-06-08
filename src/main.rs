@@ -90,7 +90,7 @@ impl DomainGenerator {
 
 struct AsyncDomainResolver {
     domains: Vec<String>,
-    max_async_lookups: u32,
+    max_async_queries: u32,
     resolved_domains: DomainNames,
 }
 
@@ -98,14 +98,14 @@ impl AsyncDomainResolver {
     fn new(domains: Vec<String>) -> Self {
         Self {
             domains: domains,
-            max_async_lookups: 20,
+            max_async_queries: 20,
             resolved_domains: DomainNames::new(),
         }
     }
 
     fn resolve_domains(&mut self) {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        for domains in self.domains.chunks(self.max_async_lookups as usize) {
+        for domains in self.domains.chunks(self.max_async_queries as usize) {
             let now = Local::now();
             println!("--- Verifying {} domains at {:?} ---", domains.len(), now);
             let verified_domains = rt.block_on(self.async_resolve_domains(domains));
