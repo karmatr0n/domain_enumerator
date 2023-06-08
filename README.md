@@ -13,11 +13,11 @@ cargo install --path .
 
 ## How to run this
 ```
-$HOME/.cargo/bin/domain_resolver -w dicts/wordlist -t io
+$HOME/.cargo/domain_resolver -n dicts/wordlist -t io -o results.json
 
 or
 
-$HOME/.cargo/bin/domain_resolver --help
+$HOME/.cargo/domain_resolver -n dicts/wordlist -t io
 ```
 
 ## License
