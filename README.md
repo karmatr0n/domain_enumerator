@@ -1,20 +1,23 @@
 # domain_resolver
-asynchronous domain resolver looks for available domains using a word list and the top level domain of your choice.
+Asynchronous domain resolver that looks for available domains using a word list and the top level domain of your choice.
 
 ## How to build this
 ```
 cargo build --release
 ```
 
-
-## How to run this
-```
-./target/release/domain_resolver dicts/wordlist io
-```
-
 ## How to install this
 ```
 cargo install --path .
+```
+
+## How to run this
+```
+$HOME/.cargo/bin/domain_resolver -w dicts/wordlist -t io
+
+or
+
+$HOME/.cargo/bin/domain_resolver --help
 ```
 
 ## License

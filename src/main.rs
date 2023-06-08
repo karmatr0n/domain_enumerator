@@ -3,7 +3,6 @@ use futures::executor::block_on;
 use futures::future::join_all;
 use futures::Future;
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::BufReader;
@@ -96,10 +95,7 @@ impl AsyncDomainResolver {
     fn resolve_domains(&mut self) {
         for domains in self.domains.chunks(self.max_async_lookups as usize) {
             let now = Local::now();
-            println!(
-                "--- Verifying {} domains at {:?} ---",
-                self.max_async_lookups, now
-            );
+            println!("--- Verifying {} domains at {:?} ---", domains.len(), now);
 
             let verified_domains = block_on(self.async_resolve_domains(domains));
             for domain in verified_domains {
@@ -149,16 +145,24 @@ impl AsyncDomainResolver {
     }
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        println!("Usage: {} <domain_list_file> <top_level_domain>", args[0]);
-        return;
-    }
+use clap::Parser;
+// domain_resolver -w <wordlist> <top_level_domain>
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path for the wordlist to use
+    #[arg(short, long)]
+    wordlist_path: String,
 
-    let path = args[1].clone();
-    let top_level = args[2].clone();
-    let generator = DomainGenerator::new(path, top_level);
+    /// Top level domain, example: com
+    #[arg(short, long, default_value = "com")]
+    top_level: String,
+}
+
+fn main() {
+    let args = Args::parse();
+
+    let generator = DomainGenerator::new(args.wordlist_path, args.top_level);
 
     match generator.generate_domains() {
         Ok(domains) => {
