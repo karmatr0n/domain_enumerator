@@ -88,13 +88,13 @@ impl DomainGenerator {
     }
 }
 
-struct AsyncDomainResolver {
+struct AsyncDomainEnumerator {
     domains: Vec<String>,
     max_async_queries: u32,
     resolved_domains: DomainNames,
 }
 
-impl AsyncDomainResolver {
+impl AsyncDomainEnumerator {
     fn new(domains: Vec<String>) -> Self {
         Self {
             domains: domains,
@@ -170,7 +170,7 @@ fn main() {
 
     match generator.generate_domains() {
         Ok(domains) => {
-            let mut async_resolver = AsyncDomainResolver::new(domains);
+            let mut async_resolver = AsyncDomainEnumerator::new(domains);
             async_resolver.resolve_domains();
             if let Ok(json) = async_resolver.as_json() {
                 let output_path = args.output_path;

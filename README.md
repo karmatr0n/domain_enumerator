@@ -1,5 +1,5 @@
-# domain_resolver
-Asynchronous domain resolver that looks for available domains using a word list and the top level domain of your choice.
+# domain_enumerator
+Asynchronous domain enumerator that looks for available domains using a name list and the top level domain of your choice.
 
 ## How to build this
 ```
@@ -13,11 +13,11 @@ cargo install --path .
 
 ## How to run this
 ```
-$HOME/.cargo/domain_resolver -n dicts/wordlist -t io -o results.json
+$HOME/.cargo/domain_enumerator -n dicts/wordlist -t io -o results.json
 
 or
 
-$HOME/.cargo/domain_resolver -n dicts/wordlist -t io
+$HOME/.cargo/domain_enumerator -n dicts/wordlist -t io
 ```
 
 ## License
