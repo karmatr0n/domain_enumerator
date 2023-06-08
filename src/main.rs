@@ -156,7 +156,7 @@ struct Args {
     names_path: String,
 
     /// Top level domain, example: com
-    #[arg(short, long, default_value = "com")]
+    #[arg(short, long)]
     top_level: String,
     /// Path for the file with the names to use
     #[arg(short, long, default_value = "resolved_domains.json")]
