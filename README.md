@@ -14,11 +14,11 @@ cargo install --path .
 
 ## How to run this
 ```
-$HOME/.cargo/domain_enumerator -n dicts/wordlist -t io -o results.json
+$HOME/.cargo/domain_enumerator -n dicts/wordlist -t domain.io -o results.json
 
 or
 
-$HOME/.cargo/domain_enumerator -n dicts/wordlist -t io
+$HOME/.cargo/domain_enumerator -n dicts/wordlist -t domain.io
 ```
 
 ## License
