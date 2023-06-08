@@ -92,14 +92,18 @@ struct AsyncDomainEnumerator {
     domains: Vec<String>,
     max_async_queries: u32,
     resolved_domains: DomainNames,
+    dns_server_addr: String,
+    dns_server_port: u32,
 }
 
 impl AsyncDomainEnumerator {
-    fn new(domains: Vec<String>) -> Self {
+    fn new(domains: Vec<String>, dns_server_addr: String, dns_server_port: &u32) -> Self {
         Self {
             domains: domains,
             max_async_queries: 20,
             resolved_domains: DomainNames::new(),
+            dns_server_addr: dns_server_addr.to_string(),
+            dns_server_port: *dns_server_port,
         }
     }
 
@@ -131,7 +135,7 @@ impl AsyncDomainEnumerator {
     }
 
     async fn resolve_domain(&self, qname: String) -> Domain {
-        let ip_addr_and_port = "8.8.8.8:53";
+        let ip_addr_and_port = format!("{}:{}", self.dns_server_addr, self.dns_server_port);
         let nameserver: SocketAddr = ip_addr_and_port
             .parse()
             .expect("Unable to parse socket address");
@@ -161,6 +165,12 @@ struct Args {
     /// Path for the file with the names to use
     #[arg(short, long, default_value = "resolved_domains.json")]
     output_path: String,
+    /// DNS server address destination to use
+    #[arg(long, default_value = "8.8.8.8")]
+    dns_address: String,
+    /// DNS server port destination to use
+    #[arg(long, default_value_t = 53)]
+    dns_port: u32,
 }
 
 fn main() {
@@ -170,7 +180,8 @@ fn main() {
 
     match generator.generate_domains() {
         Ok(domains) => {
-            let mut async_resolver = AsyncDomainEnumerator::new(domains);
+            let mut async_resolver =
+                AsyncDomainEnumerator::new(domains, args.dns_address, &args.dns_port);
             async_resolver.resolve_domains();
             if let Ok(json) = async_resolver.as_json() {
                 let output_path = args.output_path;

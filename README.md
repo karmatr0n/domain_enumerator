@@ -18,6 +18,10 @@ $HOME/.cargo/domain_enumerator -n dicts/wordlist -t domain.io -o results.json
 or
 
 $HOME/.cargo/domain_enumerator -n dicts/wordlist -t domain.io
+
+or
+
+$HOME/.cargo/domain_enumerator --help
 ```
 
 ## License
