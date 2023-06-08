@@ -1,4 +1,5 @@
 use chrono::Local;
+use clap::Parser;
 use futures::future::join_all;
 use regex::Regex;
 use rsdns::clients::{tokio::Client, ClientConfig};
@@ -10,6 +11,41 @@ use std::io::BufReader;
 use std::io::{self, BufRead};
 use std::net::SocketAddr;
 use std::path::Path;
+
+#[derive(Serialize, Deserialize)]
+struct Domain {
+    name: String,
+    resolved: bool,
+}
+
+impl Domain {
+    fn new(name: String, resolved: bool) -> Self {
+        Self {
+            name: name,
+            resolved: resolved,
+        }
+    }
+}
+
+struct DomainNames {
+    domains: Vec<Domain>,
+}
+
+impl DomainNames {
+    fn new() -> Self {
+        Self {
+            domains: Vec::<Domain>::new(),
+        }
+    }
+
+    fn add(&mut self, domain: Domain) {
+        self.domains.push(domain);
+    }
+
+    fn to_json(&mut self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(&self.domains)
+    }
+}
 
 struct DomainGenerator {
     path: String,
@@ -52,41 +88,6 @@ impl DomainGenerator {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Domain {
-    name: String,
-    resolved: bool,
-}
-
-impl Domain {
-    fn new(name: String, resolved: bool) -> Self {
-        Self {
-            name: name,
-            resolved: resolved,
-        }
-    }
-}
-
-struct DomainNames {
-    domains: Vec<Domain>,
-}
-
-impl DomainNames {
-    fn new() -> Self {
-        Self {
-            domains: Vec::<Domain>::new(),
-        }
-    }
-
-    fn add(&mut self, domain: Domain) {
-        self.domains.push(domain);
-    }
-
-    fn to_json(&mut self) -> Result<String, serde_json::Error> {
-        serde_json::to_string_pretty(&self.domains)
-    }
-}
-
 struct AsyncDomainResolver {
     domains: Vec<String>,
     max_async_lookups: u32,
@@ -115,23 +116,8 @@ impl AsyncDomainResolver {
         }
     }
 
-    fn save_to_json(&mut self) {
-        match self.resolved_domains.to_json() {
-            Ok(json) => {
-                let filename = self.filename();
-                fs::write(filename.clone(), json).expect("Unable to write file");
-                println!("Output: {}", filename);
-            }
-            Err(e) => eprintln!("Failed to convert to JSON: {}", e),
-        }
-    }
-
-    fn filename(&mut self) -> String {
-        use random_string::{Charset, Charsets, RandomString};
-        let charset = Charset::from_charsets(Charsets::LettersLowercase);
-        let prefix = RandomString::generate(6, &charset);
-        let now = Local::now();
-        format!("{}_{}.json", prefix, now.timestamp())
+    fn as_json(&mut self) -> Result<String, serde_json::Error> {
+        self.resolved_domains.to_json()
     }
 
     async fn async_resolve_domains(&self, domains: &[String]) -> Vec<Domain> {
@@ -161,7 +147,6 @@ impl AsyncDomainResolver {
     }
 }
 
-use clap::Parser;
 // domain_resolver -n <names_list> <top_level_domain>
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -173,6 +158,9 @@ struct Args {
     /// Top level domain, example: com
     #[arg(short, long, default_value = "com")]
     top_level: String,
+    /// Path for the file with the names to use
+    #[arg(short, long, default_value = "resolved_domains.json")]
+    output_path: String,
 }
 
 fn main() {
@@ -184,7 +172,13 @@ fn main() {
         Ok(domains) => {
             let mut async_resolver = AsyncDomainResolver::new(domains);
             async_resolver.resolve_domains();
-            async_resolver.save_to_json();
+            if let Ok(json) = async_resolver.as_json() {
+                let output_path = args.output_path;
+                fs::write(output_path.clone(), json).expect("Unable to write file");
+                println!("Output file: {}", output_path);
+            } else if let Err(e) = async_resolver.as_json() {
+                eprintln!("Failed to convert to JSON: {}", e);
+            }
         }
         Err(e) => eprintln!("Error occurred: {}", e),
     }
